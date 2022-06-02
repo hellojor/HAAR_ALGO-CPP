@@ -1,2 +1,2 @@
 # HAAR_ALGO-CPP
-HAAR_ALGORITHM implement with
+HAAR_ALGORITHM implement on CPP
