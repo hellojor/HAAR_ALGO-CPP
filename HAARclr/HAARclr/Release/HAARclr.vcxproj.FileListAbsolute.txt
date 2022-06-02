@@ -1,0 +1,2 @@
+C:\Users\JorJor\Desktop\HAARclr\HAARclr\Release\HAARclr.MyForm.resources
+C:\Users\JorJor\Desktop\HAARclr\HAARclr\Release\HAARclr.vcxproj.GenerateResource.cache

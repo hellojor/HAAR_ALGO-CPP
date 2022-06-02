@@ -1,0 +1,6 @@
+﻿  MyForm.cpp
+C:\Users\JorJor\Desktop\HAARclr\HAARclr\MyForm.h(268,16): warning C4244: '正在初始化': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
+C:\Users\JorJor\Desktop\HAARclr\HAARclr\MyForm.h(346,41): warning C4244: '=': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
+C:\Users\JorJor\Desktop\HAARclr\HAARclr\MyForm.h(360,16): warning C4244: '正在初始化': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
+  MyForm.obj : 發現 MSIL 模組。MSIL 的累加連結已停用。正在執行完整連結
+  HAARclr.vcxproj -> C:\Users\JorJor\Desktop\HAARclr\Debug\HAARclr.exe
