@@ -7,6 +7,8 @@
 
 ## HAAR_ALGORITHM implement on CLR(UI):
   RUN `HAARclr/HAARclr` on visual studio 2019(.NET Framework 4.7.2 SDK)
-  
+
+<br>
+
 ## Result
   ![Processing image](https://github.com/hellojor/HAAR_ALGO-CPP/blob/main/result.jpg)
