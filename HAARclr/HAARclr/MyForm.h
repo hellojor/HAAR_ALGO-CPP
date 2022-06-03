@@ -205,90 +205,89 @@ namespace HAARclr {
 		if (ori_image == nullptr) {
 			return;
 		}
-		Bitmap^ buff = gcnew Bitmap(ori_image->Width, ori_image->Height, ori_image->PixelFormat);
 		comp_image = gcnew Bitmap(ori_image->Width, ori_image->Height, ori_image->PixelFormat);
 		// Lock Memory
 		BitmapData^ bd_ori = ori_image->LockBits(Rectangle(0, 0, ori_image->Width, ori_image->Height), ImageLockMode::ReadWrite, ori_image->PixelFormat);
-		BitmapData^ bd_buff = buff->LockBits(Rectangle(0, 0, buff->Width, buff->Height), ImageLockMode::ReadWrite, buff->PixelFormat);
 		BitmapData^ bd_comp = comp_image->LockBits(Rectangle(0, 0, comp_image->Width, comp_image->Height), ImageLockMode::ReadWrite, comp_image->PixelFormat);
 
 		int ori_byteskip = bd_ori->Stride - bd_ori->Width * 3;
-		int buff_byteskip = bd_buff->Stride - bd_buff->Width * 3;
 		int comp_byteskip = bd_comp->Stride - bd_comp->Width * 3;
 
 		Byte* ori_ptr = (Byte*)((void*)bd_ori->Scan0);
-		Byte* buff_ptr = (Byte*)((void*)bd_buff->Scan0);
 		Byte* comp_ptr = (Byte*)((void*)bd_comp->Scan0);
 
-		int ratio = 8; // region img size (default is 8 x 8)
-		float** region_img = new float* [ratio];
-		for (int i = 0; i < ratio; i++) {
-			region_img[i] = new float[ratio];
+		int freq = 3; // region img size (default is 8 x 8)
+		float** img = new float* [ori_image->Height];
+		float** buff = new float* [ori_image->Height];
+		for (int i = 0; i < ori_image->Height; i++) {
+			img[i] = new float[ori_image->Width];
+			buff[i] = new float[ori_image->Width];
 		}
 
 		for (int y = 0; y < bd_ori->Height; y++) {
 			for (int x = 0; x < bd_ori->Width; x++) {
-				buff_ptr[0] = (int)ori_ptr[0];
-				buff_ptr[1] = (int)ori_ptr[0];
-				buff_ptr[2] = (int)ori_ptr[0];
-
+				img[y][x] = (int)ori_ptr[0];
+				//img[y][x] = (int)ori_ptr[0] + 128;
 				ori_ptr += 3;
-				buff_ptr += 3;
 			}
 			ori_ptr += ori_byteskip;
-			buff_ptr += buff_byteskip;
 		}
 
 		// ENCODE
-		for (int y = 0; y < bd_ori->Height; y += 8) {
-			for (int x = 0; x < bd_ori->Width; x += 8) {
 
-				buff_ptr = (Byte*)((void*)bd_buff->Scan0);
-				comp_ptr = (Byte*)((void*)bd_comp->Scan0);
 
-				buff_ptr += (y * bd_buff->Stride + x * 3);
-				comp_ptr += (y * bd_comp->Stride + x * 3);
+		int height = ori_image->Height;
+		int width = ori_image->Width;
+		for (int i = 0; i < freq; i++) {
+			// row
+			for (int scany = 0; scany < height; scany++) {
+				for (int scanx = 0; scanx < width; scanx += 2) {
+					float gray1 = (float)img[scany][scanx];
+					float gray2 = (float)img[scany][scanx + 1];
 
-				for (int i = 0; i < ratio; i++) {
-					for (int j = 0; j < ratio; j++) {
-						region_img[i][j] = (float)buff_ptr[0];
-						buff_ptr += 3;
-					}
-					buff_ptr += (bd_buff->Stride - ratio * 3);
+					buff[scany][(int)(scanx / 2)] = ((float)gray1 + (float)gray2) / 2;
+					buff[scany][(int)(scanx / 2) + (int)(width / 2)] = ((float)gray1 - (float)gray2) / 2;
 				}
+			}
 
-				float n = (float)ratio;
-				while (n > 2) {
-					HAAR_encode(region_img, ratio);
-					n /= 2;
+			// col
+			for (int scany = 0; scany < height; scany += 2) {
+				for (int scanx = 0; scanx < width; scanx++) {
+					float gray1 = (float)buff[scany][scanx];
+					float gray2 = (float)buff[scany + 1][scanx];
+
+					img[(int)(scany / 2)][scanx] = ((float)gray1 + (float)gray2) / 2;
+					img[(int)(scany / 2) + (int)(height / 2)][scanx] = ((float)gray1 - (float)gray2) / 2;
 				}
-
-				for (int i = 0; i < ratio; i++) {
-					for (int j = 0; j < ratio; j++) {
-						int gray = round(region_img[i][j]);
-
-						if (gray < 0) gray = 0;
-						if (gray > 255) gray = 255;
-
-						comp_ptr[0] = gray;
-						comp_ptr[1] = gray;
-						comp_ptr[2] = gray;
-						comp_ptr += 3;
-					}
-					comp_ptr += (bd_comp->Stride - ratio * 3);
-				}
-
 			}
 		}
 
+		for (int y = 0; y < bd_ori->Height; y++) {
+			for (int x = 0; x < bd_ori->Width; x++) {
+				int gray = (int)img[y][x];
+
+				//int gray = (int)img[y][x] + 128;
+				//if (gray < 0) gray = 0;
+				//if (gray > 255) gray = 255;
+
+				comp_ptr[0] = gray;
+				comp_ptr[1] = gray;
+				comp_ptr[2] = gray;
+				comp_ptr += 3;
+			}
+			comp_ptr += comp_byteskip;
+		}
+
+
+
 		// free the memory of pointer
-		for (int i = 0; i < ratio; i++) {
-			delete region_img[i];
+		for (int i = 0; i < height; i++) {
+			delete img[i];
+			delete buff[i];
 		}
 
 		// Unlock Memory
 		ori_image->UnlockBits(bd_ori);
-		buff->UnlockBits(bd_buff);
 		comp_image->UnlockBits(bd_comp);
 		pictureBox2->Image = comp_image;
 	}
@@ -297,175 +296,91 @@ namespace HAARclr {
 		if (comp_image == nullptr) {
 			return;
 		}
-		Bitmap^ buff = gcnew Bitmap(comp_image->Width, comp_image->Height, comp_image->PixelFormat);
+
 		Bitmap^ output = gcnew Bitmap(comp_image->Width, comp_image->Height, comp_image->PixelFormat);
 		// Lock Memory
 		BitmapData^ bd_comp = comp_image->LockBits(Rectangle(0, 0, comp_image->Width, comp_image->Height), ImageLockMode::ReadWrite, comp_image->PixelFormat);
-		BitmapData^ bd_buff = buff->LockBits(Rectangle(0, 0, buff->Width, buff->Height), ImageLockMode::ReadWrite, buff->PixelFormat);
 		BitmapData^ bd_output = output->LockBits(Rectangle(0, 0, output->Width, output->Height), ImageLockMode::ReadWrite, output->PixelFormat);
 
 		int comp_byteskip = bd_comp->Stride - bd_comp->Width * 3;
-		int buff_byteskip = bd_buff->Stride - bd_buff->Width * 3;
 		int output_byteskip = bd_output->Stride - bd_output->Width * 3;
 
 		Byte* comp_ptr = (Byte*)((void*)bd_comp->Scan0);
-		Byte* buff_ptr = (Byte*)((void*)bd_buff->Scan0);
 		Byte* output_ptr = (Byte*)((void*)bd_output->Scan0);
 
-		int ratio = 8; // region img size (default is 8 x 8)
-		float** region_img = new float* [ratio];
-		for (int i = 0; i < ratio; i++) {
-			region_img[i] = new float[ratio];
+		int freq = 3; // the freq of compression
+
+		int** img = new int* [ori_image->Height];
+		int** buff = new int* [ori_image->Height];
+		for (int i = 0; i < ori_image->Height; i++) {
+			img[i] = new int[ori_image->Width];
+			buff[i] = new int[ori_image->Width];
 		}
 
 		for (int y = 0; y < bd_comp->Height; y++) {
 			for (int x = 0; x < bd_comp->Width; x++) {
-				buff_ptr[0] = (int)comp_ptr[0];
-				buff_ptr[1] = (int)comp_ptr[0];
-				buff_ptr[2] = (int)comp_ptr[0];
-
+				img[y][x] = (int)comp_ptr[0];
+				//img[y][x] = (int)comp_ptr[0] + 128;
 				comp_ptr += 3;
-				buff_ptr += 3;
 			}
 			comp_ptr += comp_byteskip;
-			buff_ptr += buff_byteskip;
 		}
 
-		// ENCODE
-		for (int y = 0; y < bd_comp->Height; y += 8) {
-			for (int x = 0; x < bd_comp->Width; x += 8) {
+		int height = (int)bd_comp->Height;
+		int width = (int)bd_comp->Width;
+		for (int n = 0; n < freq; n++) {
 
-				buff_ptr = (Byte*)((void*)bd_buff->Scan0);
-				output_ptr = (Byte*)((void*)bd_output->Scan0);
+			// column
+			for (int scany = 0; scany < height; scany += 2) {
+				for (int scanx = 0; scanx < width; scanx++) {
+					int gray1 = img[(int)(scany / 2)][scanx];
+					int gray2 = img[(int)(scany / 2) + (int)(height / 2)][scanx];
 
-				buff_ptr += (y * bd_buff->Stride + x * 3);
-				output_ptr += (y * bd_output->Stride + x * 3);
-
-				for (int i = 0; i < ratio; i++) {
-					for (int j = 0; j < ratio; j++) {
-						region_img[i][j] = (int)buff_ptr[0];
-						buff_ptr += 3;
-					}
-					buff_ptr += (bd_buff->Stride - ratio * 3);
+					buff[scany][scanx] = gray1 + gray2;
+					buff[scany + 1][scanx] = gray1 - gray2;
 				}
+			}
 
-				float n = (float)ratio;
-				while (n > 2) {
-					HAAR_decode(region_img, ratio);
-					n /= 2;
+			// row
+			for (int scany = 0; scany < height; scany++) {
+				for (int scanx = 0; scanx < width; scanx += 2) {
+					int gray1 = buff[scany][(int)(scanx / 2)];
+					int gray2 = buff[scany][(int)(scanx / 2) + (int)(width / 2)];
+
+					img[scany][scanx] = gray1 + gray2;
+					img[scany][scanx + 1] = gray1 - gray2;
 				}
-
-				for (int i = 0; i < ratio; i++) {
-					for (int j = 0; j < ratio; j++) {
-						int gray = round(region_img[i][j]);
-
-						if (gray < 0) gray = 0;
-						if (gray > 255) gray = 255;
-
-						output_ptr[0] = gray;
-						output_ptr[1] = gray;
-						output_ptr[2] = gray;
-						output_ptr += 3;
-					}
-					output_ptr += (bd_output->Stride - ratio * 3);
-				}
-
 			}
 		}
 
-		// free the memory of pointer
-		for (int i = 0; i < ratio; i++) {
-			delete region_img[i];
+		for (int y = 0; y < bd_output->Height; y++) {
+			for (int x = 0; x < bd_output->Width; x++) {
+
+				int gray = img[y][x];
+
+				//int gray = img[y][x] + 128;
+				//if (gray < 0) gray = 0;
+				//if (gray > 255) gray = 255;
+
+				output_ptr[0] = gray;
+				output_ptr[1] = gray;
+				output_ptr[2] = gray;
+
+				output_ptr += 3;
+			}
+			output_ptr += output_byteskip;
+		}
+
+		// free memory
+		for (int i = 0; i < ori_image->Height; i++) {
+			delete img[i];
+			delete buff[i];
 		}
 
 		// Unlock Memory
 		comp_image->UnlockBits(bd_comp);
-		buff->UnlockBits(bd_buff);
 		output->UnlockBits(bd_output);
 		pictureBox3->Image = output;
-	}
-
-	private: float ceil_float2(float f) {
-		if ((float)(round)(f * 10) / 10 == -0) return 0; // avoid "-0"
-		else return (float)(round)(f * 10) / 10;
-	}
-
-	private: void HAAR_encode(float** img, int ratio) {
-
-		float** buff = new float* [ratio];
-		for (int i = 0; i < ratio; i++) {
-			buff[i] = new float[ratio];
-		}
-
-		int height = ratio;
-		int width = ratio;
-		// row
-		for (int scany = 0; scany < height; scany++) {
-			for (int scanx = 0; scanx < width; scanx += 2) {
-				float gray1 = ceil_float2((float)img[scany][scanx]);
-				float gray2 = ceil_float2((float)img[scany][scanx + 1]);
-
-				float avg = ceil_float2(((float)gray1 + (float)gray2) / 2);
-
-				buff[scany][(int)(scanx / 2)] = ceil_float2((float)avg);
-				buff[scany][(int)(scanx / 2) + (int)(width / 2)] = ceil_float2((float)avg - (float)gray2);
-			}
-		}
-
-		// col
-		for (int scany = 0; scany < height; scany += 2) {
-			for (int scanx = 0; scanx < width; scanx++) {
-				float gray1 = ceil_float2((float)buff[scany][scanx]);
-				float gray2 = ceil_float2((float)buff[scany + 1][scanx]);
-
-				float avg = ceil_float2(((float)gray1 + (float)gray2) / 2);
-
-				img[(int)(scany / 2)][scanx] = ceil_float2((float)avg);
-				img[(int)(scany / 2) + (int)(height / 2)][scanx] = ceil_float2((float)avg - (float)gray2);
-			}
-		}
-
-		for (int i = 0; i < ratio; i++) {
-			delete buff[i];
-		}
-
-	}
-
-	private: void HAAR_decode(float** img, int ratio) {
-
-		float** buff = new float* [ratio];
-		for (int i = 0; i < ratio; i++) {
-			buff[i] = new float[ratio];
-		}
-
-		int height = ratio;
-		int width = ratio;
-
-		// col
-		for (int scany = 0; scany < height; scany += 2) {
-			for (int scanx = 0; scanx < width; scanx++) {
-				float gray1 = (float)img[(int)(scany / 2)][scanx];
-				float gray2 = (float)img[(int)(scany / 2) + (int)(height / 2)][scanx]; // avg
-
-				buff[scany][scanx] = ceil_float2((float)gray1 + (float)gray2);
-				buff[scany + 1][scanx] = ceil_float2((float)gray1 - (float)gray2);
-			}
-		}
-
-		// row
-		for (int scany = 0; scany < height; scany++) {
-			for (int scanx = 0; scanx < width; scanx += 2) {
-				float gray1 = (float)buff[scany][(int)(scanx / 2)];
-				float gray2 = (float)buff[scany][(int)(scanx / 2) + (int)(width / 2)];
-
-				img[scany][scanx] = ceil_float2((float)gray1 + (float)gray2);
-				img[scany][scanx + 1] = ceil_float2((float)gray1 - (float)gray2);
-			}
-		}
-
-		for (int i = 0; i < ratio; i++) {
-			delete buff[i];
-		}
 	}
 
 	};
