@@ -6,7 +6,7 @@
 <br>
 
 ## HAAR_ALGORITHM implement on CLR(UI):
-  RUN `HAARclr/HAARclr` on visual studio 2019(.NET Framework 4.7.2 SDK)
+  RUN `HAARclr/HAARclr.sln` on visual studio 2019(.NET Framework 4.7.2 SDK)
 
 <br>
 
